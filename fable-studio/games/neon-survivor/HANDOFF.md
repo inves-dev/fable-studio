@@ -143,6 +143,16 @@ Todos confirmados via test em PC (Brave, http://localhost:5173):
 | Botões grandes demais | Joystick 130→105px, stick 60→46px, btn 78→64px, FIRE 100→82px | `src/mobile/MobileControls.css:19-59` |
 | Sem tela de loading antes do jogo | Splash "NanaGames" com fade 2s, ativado via `body.ready` setado em `requestAnimationFrame` | `index.html:286-291`, `src/boot.ts:128-148` |
 
+### 3.7. Bugfixes v0.4.0 e v0.4.1
+
+| Bug | Fix | Onde |
+|---|---|---|
+| **Joysticks e botões com retorno visual mas sem ação** (v0.3.0) | Handlers em `boot.ts` agora leem `window.GAME` fresco em cada call (evita closure stale após reset). `MobileControls.ts` joystick handler idem. DASH no mobile sem movimento (removido gate `moveDir.lengthSq() > 0` no mobile). | `src/boot.ts:78-128`, `src/mobile/MobileControls.ts:106-130`, `src/game-source.ts:3011-3027` |
+| **CRASH `moveDir is not defined` (v0.4.0)** | Comentário com backtick no source (`\`&&\` moveDir...`) fazia esbuild minifier interpretar como template literal aberto, deslocando todo o código. Removidos backticks. | `src/game-source.ts:3014` |
+| Performance ruim mesmo após particle pool | 48 `MeshStandardMaterial` → `MeshLambertMaterial` (30-50% GPU ganho). `moon.shadow.*` removido. `castShadow=false` em player meshes. `PointLight` ranges reduzidos. Bundle 982→861 KB. | `src/game-source.ts` (sed em massa) |
+| App abre em portrait (v0.4.0) | `screen.orientation.lock('landscape')` no boot. Re-lock em `orientationchange`. Fallback CSS `#rotateNotice` com `@media (orientation: portrait)`. | `src/boot.ts:148-166`, `index.html:11-32, 297-302` |
+| Debug pra diagnosticar controles (temporário) | Overlay no canto superior esquerdo mostra `state`, `mouse.down`, `keys (W/A/S/D/Sp)`, `yaw`, `ammo`, `fireCooldown`. Tap pra dispensar. | `src/boot.ts:155-188` |
+
 ---
 
 ## 4. Por que o APK não foi gerado
