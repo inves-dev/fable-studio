@@ -17,6 +17,9 @@
 | **JDK 21 instalável?** | ❌ **Bloqueado: proxy corporativo + sandbox macOS bloqueiam download** |
 | **Build do APK via GitHub Actions** | ✅ **Funcionando** — workflow em `Fable/.github/workflows/build-neon-android.yml`, gera `app-debug.apk` (~4.2 MB) como artifact da run |
 | **APK assinado em debug, pronto pra `adb install`** | ✅ Validado (aapt: package com.nanagames.neonsurvivor, minSdk 23, targetSdk 35, label "Neon Survivor") |
+| **Controles mobile visíveis (joysticks + botões)** | ✅ **Fix em v0.2.0** — `boot.ts` agora importa o CSS, Vite bundlea |
+| **Performance cross-platform (Android low/mid + iPhone)** | ✅ **Otimizado em v0.2.0** — antialias off, Reinhard toneMapping, pixelRatio 1.25 no mobile, ENEMY_CAP 35, AI O(n²) gated |
+| **Menu inicial mobile-friendly** | ✅ **Em v0.2.0** — duas listas (PC vs mobile), toggle via `body.is-mobile` |
 | Instalação do APK no celular | ⏸ Pendente (usuário instala quando quiser — instruções abaixo) |
 
 **TL;DR**: O pipeline end-to-end está funcionando via GitHub Actions. O APK debug é gerado em ~3min e fica disponível como artifact da run. Não precisa mais de JDK 21 localmente.
@@ -119,6 +122,15 @@ Todos confirmados via test em PC (Brave, http://localhost:5173):
 | Lag em 120fps | Shadows desligadas, texturas compartilhadas, cap 200 bullets / 300 particles | 817, 1099-1100, ~2486 |
 | Mouse desktop lento demais | `sens = 0.0035 → 0.005` | 2905 |
 | Joystick mobile lento | `dx * 0.04 → dx * 0.06` (em MobileControls.ts) | 135-136 |
+
+### 3.5. Bugfixes mobile v0.2.0 (commit `2db16b9`)
+
+| Bug | Fix | Onde |
+|---|---|---|
+| **Controles mobile invisíveis no APK** | `MobileControls.css` não era bundleado (Vite só bundlea o que é import). Adicionado `import './mobile/MobileControls.css'` em `boot.ts` | `src/boot.ts:9` |
+| Botões do jogo não respondem em mobile | `#mobileControls` z-index 20 (igual aos overlays) tapava os botões. Reduzido pra 15 | `src/mobile/MobileControls.css:5` |
+| Menu inicial focado em PC | Duas listas (`.pc-controls` + `.mobile-controls`), toggle via `body.is-mobile` que `boot.ts` seta quando `Capacitor.isNativePlatform()` | `index.html:290-302`, `src/boot.ts` |
+| 30 FPS em mobile com lag em waves altas | antialias off, Reinhard toneMapping, pixelRatio 1.25 no mobile, ENEMY_CAP 35, AI O(n²) gated em > 20 inimigos | `src/game-source.ts:821-833, 2348-2352, 3290-3308` |
 
 ---
 
