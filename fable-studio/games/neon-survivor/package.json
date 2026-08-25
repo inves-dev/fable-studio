@@ -1,0 +1,31 @@
+{
+  "name": "@nanagames/neon-survivor",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Neon Survivor — top-down arena shooter by Nana Games. Capacitor app.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "sync:android": "vite build && cap sync android",
+    "sync:ios": "vite build && cap sync ios",
+    "android": "cap open android"
+  },
+  "dependencies": {
+    "@nanagames/engine": "file:../../packages/engine",
+    "three": "^0.180.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  }
+}

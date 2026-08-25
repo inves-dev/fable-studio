@@ -1,0 +1,19 @@
+# OS / editor cruft
+.DS_Store
+*.log
+
+# Claude Code local metadata
+.claude/launch.json
+.claude/settings.local.json
+
+# Source original do jogo (vive fora do monorepo — fonte da verdade pro game-source.ts)
+index.html
+
+# Tudo que o monorepo gera (cobre node_modules/, dist/, android/, ios/, *.tsbuildinfo, etc em qualquer profundidade)
+**/node_modules/
+**/dist/
+**/android/
+**/ios/
+**/.vite/
+**/*.tsbuildinfo
+**/capacitor.config.json.bak

@@ -1,0 +1,9 @@
+{
+  "appId": "com.nanagames.candycrush",
+  "appName": "Candy Crush",
+  "publisherName": "Nana Games",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

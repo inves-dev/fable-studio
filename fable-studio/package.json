@@ -1,0 +1,19 @@
+{
+  "name": "fable-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nana Games studio — shared engine + per-game Capacitor apps (Neon Survivor, Candy Crush, ...).",
+  "workspaces": [
+    "packages/*",
+    "games/*"
+  ],
+  "scripts": {
+    "dev:neon": "npm --workspace @nanagames/neon-survivor run dev",
+    "dev:candy": "npm --workspace @nanagames/candy-crush run dev",
+    "build:neon": "npm --workspace @nanagames/neon-survivor run build",
+    "build:candy": "npm --workspace @nanagames/candy-crush run build",
+    "build:engine": "npm --workspace @nanagames/engine run typecheck",
+    "studio": "npm run build:engine && npm run dev:neon"
+  }
+}

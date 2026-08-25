@@ -1,0 +1,30 @@
+{
+  "name": "@nanagames/candy-crush",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Candy Crush — match-3 puzzle by Nana Games. Capacitor app.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "sync:android": "vite build && cap sync android",
+    "sync:ios": "vite build && cap sync ios"
+  },
+  "dependencies": {
+    "@nanagames/engine": "file:../../packages/engine",
+    "three": "^0.180.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  }
+}

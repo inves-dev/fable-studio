@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Native shells
+android/
+ios/
+capacitor.config.json.bak
+
+# Build artifacts
+.vite/
+*.tsbuildinfo
