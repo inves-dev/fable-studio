@@ -6,8 +6,10 @@
 .claude/launch.json
 .claude/settings.local.json
 
-# Source original do jogo (vive fora do monorepo — fonte da verdade pro game-source.ts)
+# Source original do jogo (vive fora do monorepo — fonte da verdade pro game-source.ts).
+# Ancorado na raiz do repo pra nao atingir index.html dos workspaces.
 index.html
+!fable-studio/**/index.html
 
 # Tudo que o monorepo gera (cobre node_modules/, dist/, android/, ios/, *.tsbuildinfo, etc em qualquer profundidade)
 **/node_modules/
