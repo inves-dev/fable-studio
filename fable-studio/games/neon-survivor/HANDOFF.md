@@ -15,9 +15,21 @@
 | Gradle 8.11.1 + Android SDK 35 instalados na máquina | ✅ Pronto |
 | **Build do APK (`./gradlew assembleDebug`)** | ❌ **Falha: requer JDK 21, máquina tem só JDK 17** |
 | **JDK 21 instalável?** | ❌ **Bloqueado: proxy corporativo + sandbox macOS bloqueiam download** |
-| Instalação do APK no celular | ⏸ Bloqueada (sem APK) |
+| **Build do APK via GitHub Actions** | ✅ **Funcionando** — workflow em `Fable/.github/workflows/build-neon-android.yml`, gera `app-debug.apk` (~4.2 MB) como artifact da run |
+| **APK assinado em debug, pronto pra `adb install`** | ✅ Validado (aapt: package com.nanagames.neonsurvivor, minSdk 23, targetSdk 35, label "Neon Survivor") |
+| Instalação do APK no celular | ⏸ Pendente (usuário instala quando quiser — instruções abaixo) |
 
-**TL;DR**: Tudo o que dá pra fazer offline foi feito. Só falta o build do APK, e o ambiente atual não permite baixar JDK 21 / dependências AGP. **Solução: rodar em outra máquina/rede OU no GitHub Actions** (workflow já sugerido abaixo).
+**TL;DR**: O pipeline end-to-end está funcionando via GitHub Actions. O APK debug é gerado em ~3min e fica disponível como artifact da run. Não precisa mais de JDK 21 localmente.
+
+**Como pegar o APK agora**:
+```bash
+# Lista runs do CI
+gh run list --repo inves-dev/fable-studio --workflow "Build Neon Survivor APK" --limit 1
+# Baixa artifact da run mais recente
+gh run download <RUN_ID> --repo inves-dev/fable-studio --name neon-survivor-debug-apk
+# Instala no device (USB debugging ativo)
+adb install -r app-debug.apk
+```
 
 ---
 
@@ -135,31 +147,40 @@ Sequência de tentativas e onde travou:
 
 ## 5. O que falta fazer (pra novo Claude)
 
-### 5.1. Gerar o APK
+### 5.1. APK é gerado via CI (✅ feito)
 
-**Opção A — Recomendada: GitHub Actions CI**
-Cria `.github/workflows/build-android.yml` no repo, com job que:
-1. Checkout
-2. Setup Node 20
-3. Setup Java 21 (`actions/setup-java@v4` com `java-version: '21'`, `distribution: 'temurin'`)
-4. `npm install` → `npm --workspace @nanagames/neon-survivor run build`
-5. `cd games/neon-survivor && npx cap sync android`
-6. `cd android && ./gradlew assembleDebug`
-7. `actions/upload-artifact@v4` com `app/build/outputs/apk/debug/app-debug.apk`
+O workflow está em `Fable/.github/workflows/build-neon-android.yml` no repo `inves-dev/fable-studio`. Roda em push pra `main` ou manual dispatch (`gh workflow run "Build Neon Survivor APK" --repo inves-dev/fable-studio`).
 
-Roda em runners do GitHub (rede aberta, JDK 21 disponível). Usuário baixa o artifact direto da aba Actions.
+**Pipeline**: checkout → Node 20 → Temurin JDK 21 → Android SDK (via `android-actions/setup-android@v3`) → cache Gradle → `npm ci` no `fable-studio/` → `npm run build:neon` (gera `dist/`) → `npx cap add android` (gera `android/` pq é gitignored) → `npx cap sync android` (copia `dist/` pro shell) → `./gradlew assembleDebug --no-daemon` → `actions/upload-artifact@v4` publica `app-debug.apk`.
 
-**Opção B — Outra máquina/rede**
-Roda os mesmos comandos em PC doméstico, máquina virtual, ou servidor com internet aberta. O código já está em `/Users/mac/Documents/Joguinho/Fable/fable-studio/games/neon-survivor/`.
+Duração típica: ~3min (com cache Gradle) a ~5min (cold cache).
 
-**Opção C — Liberar domínios no proxy**
-Pedir pro admin de TI adicionar à allowlist:
-- `api.adoptium.net`
-- `dl.google.com`
-- `repo.maven.apache.org`
-- `plugins.gradle.org`
-- `github.com` (se faltar)
-- `download.bell-sw.com` (alternativa Zulu JDK)
+**Troubleshooting comum**:
+- **Vite falhando com "Could not resolve entry module index.html"**: aconteceu quando o `index.html` do workspace foi acidentalmente gitignored. Sintoma: `vite build` roda em 13ms. Fix: garantir que `fable-studio/games/neon-survivor/index.html` está tracked.
+- **`npx cap add android` interativo**: travou uma vez em workflow run. O comando CLI 7+ aceita input via TTY. Se voltar a travar, adicionar `echo "" | npx cap add android` ou setar `CAPACITOR_ANDROID_STUDIO_PATH=` vazio.
+
+### 5.1b. Build local (se a máquina um dia tiver JDK 21)
+
+```bash
+brew install --cask temurin@21
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+cd /Users/mac/Documents/Joguinho/Fable/fable-studio
+npm install
+npm run build:neon
+cd games/neon-survivor
+npx cap add android
+npx cap sync android
+cd android && ./gradlew assembleDebug
+# APK em: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 5.1c. Release assinado (fora de escopo atual)
+
+Pra Play Store precisa signing config + keystore. Próximos passos quando chegar nesse ponto:
+1. Gerar keystore: `keytool -genkey -v -keystore release.keystore -alias neon -keyalg RSA -keysize 2048 -validity 10000`
+2. Adicionar como GitHub secret: `KEYSTORE_BASE64` + `KEYSTORE_PASSWORD` + `KEY_ALIAS` + `KEY_PASSWORD`
+3. Adicionar signingConfigs.release no `android/app/build.gradle` lendo dos `System.getenv()`
+4. Rodar `assembleRelease` no workflow (job separado, gated por tag/manual dispatch)
 
 ### 5.2. Limpar código morto (opcional, baixa prioridade)
 
@@ -172,12 +193,19 @@ cd fable-studio/games/neon-survivor/src
 rm -rf ui/ systems/ scene/ main.ts state.ts lifecycle.ts audio.ts gameInit.ts input.ts inputWiring.ts visualSync.ts gameLoop.ts
 ```
 
-### 5.3. Testar no celular (depois do APK)
+### 5.3. Testar no celular
 
+Baixar o APK mais recente do CI:
 ```bash
-# USB conectado, USB debugging ativo
+gh run list --repo inves-dev/fable-studio --workflow "Build Neon Survivor APK" --limit 1 --json databaseId -q '.[0].databaseId'
+gh run download <RUN_ID> --repo inves-dev/fable-studio --name neon-survivor-debug-apk
+# Gera app-debug.apk no diretório atual
+```
+
+Instalar (USB conectado, USB debugging ativo):
+```bash
 adb devices                                # confirma que aparece
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app-debug.apk
 adb logcat | grep -E "chromium|console|neon|Capacitor"   # debug em tempo real
 ```
 
@@ -241,8 +269,10 @@ Estado esperado:
 - `src/game-source.ts` = 4223 linhas
 - `src/boot.ts` = 102 linhas
 - `src/mobile/MobileControls.ts` = 169 linhas
+- `android/` existe localmente mas é **gitignored** (regenerado pelo CI via `npx cap add android`)
 - `android/local.properties` contém `sdk.dir=/opt/homebrew/share/android-commandlinetools`
-- `android/app/build/outputs/apk/debug/app-debug.apk` **NÃO EXISTE** (ainda)
+- `android/app/build/outputs/apk/debug/app-debug.apk` **NÃO existe localmente** (só é gerado pelo CI; baixá-lo via `gh run download`)
+- **Repo upstream**: `github.com/inves-dev/fable-studio` (privado). Path no GitHub: `fable-studio/games/neon-survivor/`. CI em `fable-studio/.github/workflows/build-neon-android.yml`.
 
 ---
 
