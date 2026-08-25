@@ -52,6 +52,14 @@
   .btn:hover { transform: scale(1.05); box-shadow: 0 0 32px rgba(255,0,200,0.55); }
   .hint { margin-top: 14px; font-size: 12px; color: #6a8aa0; letter-spacing: 2px; }
 
+  /* PC vs mobile menu: shown by class on body (set by boot.ts when
+     Capacitor.isNativePlatform() is true). Default = PC layout. */
+  .mobile-controls, .mobile-only { display: none; }
+  body.is-mobile .pc-controls { display: none; }
+  body.is-mobile .pc-only { display: none; }
+  body.is-mobile .mobile-controls { display: inline-block; }
+  body.is-mobile .mobile-only { display: block; }
+
   /* HUD */
   #hud {
     position: absolute; inset: 0; pointer-events: none; z-index: 10; color: #d6f4ff;
@@ -287,7 +295,7 @@
     <h1>NEON SURVIVOR</h1>
     <h2>// survive the night //</h2>
     <p>Cyberpunk arena. Endless waves. How long can you last?</p>
-    <ul>
+    <ul class="pc-controls">
       <li><span class="kbd">W A S D</span> move</li>
       <li><span class="kbd">MOUSE</span> aim camera (or <span class="kbd">Q E</span> for 360°)</li>
       <li><span class="kbd">LMB</span> shoot</li>
@@ -297,8 +305,17 @@
       <li><span class="kbd">R</span> reload</li>
       <li><span class="kbd">ESC</span> pause</li>
     </ul>
+    <ul class="mobile-controls">
+      <li><span class="kbd">◐ LEFT</span> move (drag the stick)</li>
+      <li><span class="kbd">◑ RIGHT</span> aim (drag the stick)</li>
+      <li><span class="kbd">FIRE</span> hold to shoot</li>
+      <li><span class="kbd">DASH</span> dash (while moving)</li>
+      <li><span class="kbd">RELOAD</span> reload magazine</li>
+      <li><span class="kbd">×</span> hide/show controls</li>
+    </ul>
     <button class="btn" id="playBtn">PLAY</button>
-    <div class="hint">click to lock pointer</div>
+    <div class="hint pc-only">click to lock pointer</div>
+    <div class="hint mobile-only">tap PLAY to start — controls appear on screen</div>
   </div>
 </div>
 

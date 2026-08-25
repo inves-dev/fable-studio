@@ -2,11 +2,13 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 20;
+    z-index: 15;     /* below the menu/pause/gameover overlays (z-index 20) so taps fall through to the buttons */
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    display: none;   /* hidden until setupMobileControls() confirms we're in a touch context */
   }
+  body.is-mobile #mobileControls { display: block; }
   .mc-joystick, .mc-btn {
     position: absolute;
     pointer-events: auto;

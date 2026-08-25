@@ -811,14 +811,21 @@ function resumeAudioCtx() {
 }
 
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
+// Pixel ratio: cap 1.25 on mobile (Capacitor WebView) for ~30% fewer fragments
+// vs the 1.5 we used on desktop. boot.ts sets window.__NATIVE__ before this
+// code runs (see boot.ts top-level).
+const _isNativeRender = !!(typeof window !== 'undefined' && window.__NATIVE__);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, _isNativeRender ? 1.25 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = false;   // perf: 40+ buildings * PCF = expensive
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.7;
+// ReinhardToneMapping is ~5-10% cheaper than ACESFilmic per fragment on mobile
+// GPUs and still preserves the neon look. ACES was the desktop default; we
+// switch to Reinhard globally so the experience matches.
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 1.0;
 document.getElementById('game').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -2340,6 +2347,12 @@ function buildEnemyMesh(type) {
 }
 
 function spawnEnemy() {
+  // Perf cap: on mobile, AI flanking/grouping (O(n^2) below) and draw
+  // calls both grow quadratically with active enemies. Capping at 35
+  // protects the framerate on Android low/mid-end. PC keeps the larger cap
+  // for the existing chaos experience.
+  const ENEMY_CAP = (typeof window !== 'undefined' && window.__NATIVE__) ? 35 : 80;
+  if (GAME.enemies.length >= ENEMY_CAP) return;
   const half = GAME.arena.size * 0.5 - 4;
   let type;
   if (GAME.wave % 5 === 0) {
@@ -2772,7 +2785,7 @@ function updateGameMode(dt) {
   if (GAME.modeTimer <= 0) {
     // fim do modo — restaurar
     if (GAME.gameMode === 'dark') {
-      renderer.toneMappingExposure = 1.7;
+      renderer.toneMappingExposure = 1.5;
     }
     GAME.gameMode = 'normal';
     GAME.modeTimer = 0;
@@ -3180,7 +3193,7 @@ function update(dt) {
       GAME.gameMode = 'normal';
       GAME.modeTimer = 0;
       // restaurar iluminação normal
-      renderer.toneMappingExposure = 1.7;
+      renderer.toneMappingExposure = 1.5;
     }
     // trocar música para boss wave (5/10/15/...)
     if (GAME.wave % 5 === 0) {
@@ -3275,8 +3288,12 @@ function update(dt) {
     } else {
       // IA estratégica para melee padrão: coordena com队友
       // 1) FLANQUEAR: se há um teammate na frente, tenta ir pelos lados
+      // Perf: skip the O(n^2) scan when the field is crowded. Below 20
+      // active enemies, the visual benefit of flanking is worth the cost;
+      // above that, enemies just rush straight at the player and it's fine.
+      const _aiScan = GAME.enemies.length <= 20;
       let flanked = false;
-      for (const o of GAME.enemies) {
+      if (_aiScan) for (const o of GAME.enemies) {
         if (o === e) continue;
         const od = Math.hypot(o.mesh.position.x - GAME.player.position.x, o.mesh.position.z - GAME.player.position.z);
         if (od < dist && od > 0.5) {
@@ -3290,7 +3307,7 @@ function update(dt) {
         }
       }
       // 2) AVANÇAR COORDENADO: se há teammate próximo (4 unidades), avança em grupo
-      if (!flanked) {
+      if (!flanked && _aiScan) {
         let grouped = false;
         for (const o of GAME.enemies) {
           if (o === e) continue;

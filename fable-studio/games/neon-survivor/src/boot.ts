@@ -1,12 +1,35 @@
 import * as THREE from 'three';
 import { GAME_SOURCE } from './game-source';
 import { setupMobileControls } from './mobile/MobileControls';
+// Importing the CSS here makes Vite bundle it as an asset (hashed .css in
+// dist/assets/). Without this import, the runtime <link> injected by
+// MobileControls.ts points to /src/mobile/MobileControls.css, which only
+// exists in dev — in the Capacitor APK that path 404s and the controls
+// render as unstyled DOM (invisible).
+import './mobile/MobileControls.css';
 
 // Expose the bundled THREE namespace so the rewritten inline game source
 // (which no longer has an `import` statement) can reference it as `THREE`.
 // We set this on `window` before the rewritten source runs so any
 // top-level `THREE.X` access resolves to the same namespace Vite bundled.
 (window as unknown as { THREE_NS: typeof THREE }).THREE_NS = THREE;
+
+// Stash a native-platform flag on `window` BEFORE we run the game source.
+// The source decides renderer perf knobs (antialias, pixelRatio, toneMapping)
+// at top-level, and we want it to pick the mobile variants when running in
+// the Capacitor WebView rather than the desktop defaults.
+type NativeWindow = Window & {
+  Capacitor?: { isNativePlatform?: () => boolean; platform?: string };
+  __NATIVE__?: boolean;
+};
+const isNative = ((): boolean => {
+  try {
+    const w = window as unknown as NativeWindow;
+    return !!w.Capacitor?.isNativePlatform?.();
+  } catch { return false; }
+})();
+(window as unknown as NativeWindow).__NATIVE__ = isNative;
+if (isNative) document.body.classList.add('is-mobile');
 
 // The original game code imports three via the importmap:
 //   import * as THREE from 'three';
@@ -99,4 +122,9 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);
 } else {
   boot();
+}
+
+// On native, lock the viewport further (no rubber-band, no tap-hold selection).
+if (isNative) {
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
 }

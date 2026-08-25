@@ -14,14 +14,9 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   if (!isTouch) return { dispose: () => {} };
 
-  // Load CSS
-  if (!document.getElementById('mc-styles')) {
-    const link = document.createElement('link');
-    link.id = 'mc-styles';
-    link.rel = 'stylesheet';
-    link.href = '/src/mobile/MobileControls.css';
-    document.head.appendChild(link);
-  }
+  // CSS is bundled by boot.ts (import './mobile/MobileControls.css'), so no
+  // <link> injection needed here — and pointing at /src/... would 404 in
+  // the production APK.
 
   let host = document.getElementById('mobileControls');
   if (!host) {
