@@ -60,6 +60,52 @@
   body.is-mobile .mobile-controls { display: inline-block; }
   body.is-mobile .mobile-only { display: block; }
 
+  /* Splash screen — shown on first load, fades out 2s after body.ready
+     is set by boot.ts. z-index 50 puts it above all overlays. */
+  .splash {
+    z-index: 50;
+    background: radial-gradient(ellipse at center, #1a0a30 0%, #070314 100%);
+    flex-direction: column;
+    transition: opacity 2s ease-out;
+  }
+  body.ready .splash { opacity: 0; pointer-events: none; }
+  .splash-content { text-align: center; }
+  .splash-logo {
+    font-size: 56px; letter-spacing: 8px; font-weight: 900; margin: 0;
+    background: linear-gradient(90deg, #00e0ff, #ff00d4, #00e0ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 30px rgba(0,200,255,0.5);
+    animation: splashPulse 2.5s ease-in-out infinite;
+  }
+  .splash-tagline { font-size: 14px; color: #ff66e0; letter-spacing: 6px;
+    margin-top: 8px; text-transform: uppercase; }
+  .splash-bar { width: 220px; height: 2px; background: rgba(255,255,255,0.08);
+    margin: 36px auto 0; border-radius: 2px; overflow: hidden; }
+  .splash-bar-fill { width: 0%; height: 100%;
+    background: linear-gradient(90deg, #00e0ff, #ff00d4);
+    animation: splashProgress 1.6s ease-out forwards; }
+  @keyframes splashPulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.03); filter: brightness(1.2); }
+  }
+  @keyframes splashProgress { to { width: 100%; } }
+
+  /* HUD overrides for mobile: keep the same elements but ~30% smaller so
+     they don't eat the gameplay area. */
+  body.is-mobile .bar-wrap { width: 150px; }
+  body.is-mobile .bar { height: 8px; }
+  body.is-mobile .bar-label { font-size: 9px; margin-bottom: 2px; }
+  body.is-mobile .hud-top-left { top: 12px; left: 12px; gap: 5px; }
+  body.is-mobile .hud-bottom-left { min-width: 130px; padding: 6px 10px; bottom: 12px; left: 12px; }
+  body.is-mobile .hud-bottom-left .row { font-size: 10px; }
+  body.is-mobile .hud-top-right { top: 12px; right: 12px; min-width: 120px; }
+  body.is-mobile .hud-top-right .row { font-size: 10px; }
+  body.is-mobile .crosshair { width: 16px; height: 16px; }
+  body.is-mobile .weapon-display { min-width: 80px; padding: 6px 10px; }
+  body.is-mobile .weapon-display .weapon-name { font-size: 11px; }
+  body.is-mobile .weapon-display .weapon-hint { font-size: 9px; }
+  body.is-mobile .mute-btn { width: 44px; height: 44px; font-size: 18px; }
+
   /* HUD */
   #hud {
     position: absolute; inset: 0; pointer-events: none; z-index: 10; color: #d6f4ff;
@@ -280,6 +326,14 @@
     <div class="label">UPGRADE INCOMING</div>
     <div class="timer" id="cardCountdownT">3</div>
     <div class="bar"><div class="bar-fill" id="cardCountdownBar" style="width:100%"></div></div>
+  </div>
+</div>
+
+<div class="overlay splash" id="splashScreen">
+  <div class="splash-content">
+    <h1 class="splash-logo">NanaGames</h1>
+    <div class="splash-tagline">// cyberpunk survivor //</div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
   </div>
 </div>
 

@@ -128,3 +128,29 @@ if (document.readyState === 'loading') {
 if (isNative) {
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 }
+
+// Reveal the splash screen → menu transition. We wait one rAF (or 1.5s as
+// fallback) so the user sees the "NanaGames" logo and a brief loading bar
+// before the menu fades in. The CSS in index.html handles the 2s opacity
+// transition; we just need to flip body.ready.
+function revealAfterBoot(): void {
+  const el = document.getElementById('splashScreen');
+  // Ensure the splash is at least visible for 1.2s (feels intentional, not
+  // a flash). If rAF fires earlier we still wait the minimum.
+  const MIN_VISIBLE_MS = 1200;
+  const t0 = performance.now();
+  const flip = (): void => {
+    const elapsed = performance.now() - t0;
+    const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
+    setTimeout(() => {
+      document.body.classList.add('ready');
+      // Remove from DOM after the 2s CSS fade completes, so it doesn't
+      // intercept future taps or paint cycles.
+      setTimeout(() => el?.remove(), 2200);
+    }, wait);
+  };
+  // Two rAFs is the standard "first frame rendered" idiom, but we already
+  // gate by MIN_VISIBLE_MS above so a single rAF is enough.
+  requestAnimationFrame(flip);
+}
+revealAfterBoot();

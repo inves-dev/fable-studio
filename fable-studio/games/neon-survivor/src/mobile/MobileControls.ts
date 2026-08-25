@@ -31,7 +31,6 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
     <div class="mc-btn" id="mcShoot">FIRE</div>
     <div class="mc-btn" id="mcDash">DASH</div>
     <div class="mc-btn" id="mcReload">RELOAD</div>
-    <div class="mc-btn" id="mcHide">×</div>
   `;
 
   const moveEl = host.querySelector('#mcJoystickMove') as HTMLDivElement;
@@ -41,7 +40,6 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
   const shootBtn = host.querySelector('#mcShoot') as HTMLDivElement;
   const dashBtn = host.querySelector('#mcDash') as HTMLDivElement;
   const reloadBtn = host.querySelector('#mcReload') as HTMLDivElement;
-  const hideBtn = host.querySelector('#mcHide') as HTMLDivElement;
 
   const centerOf = (el: HTMLElement): { x: number; y: number } => {
     const r = el.getBoundingClientRect();
@@ -61,7 +59,10 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
     const onDown = (e: PointerEvent): void => {
       active = true;
       pointerId = e.pointerId;
-      el.setPointerCapture(e.pointerId);
+      // WebView on Android can reject setPointerCapture for synthetic events.
+      // Best effort: try, ignore failure (the move/up listeners still fire on
+      // the element because we attached them there directly).
+      try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
       updateFromPointer(e);
     };
     const updateFromPointer = (e: PointerEvent): void => {
@@ -140,15 +141,10 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
   const onShootUp = (e: Event): void => { e.preventDefault(); handlers.onShootUp(); };
   const onDashDown = (e: Event): void => { e.preventDefault(); handlers.onDash(); };
   const onReloadDown = (e: Event): void => { e.preventDefault(); handlers.onReload(); };
-  const onHideDown = (): void => {
-    if (host!.style.display === 'none') host!.style.display = '';
-    else host!.style.display = 'none';
-  };
   shootBtn.addEventListener('pointerdown', onShootDown);
   window.addEventListener('pointerup', onShootUp);
   dashBtn.addEventListener('pointerdown', onDashDown);
   reloadBtn.addEventListener('pointerdown', onReloadDown);
-  hideBtn.addEventListener('pointerdown', onHideDown);
 
   return {
     dispose: () => {
@@ -158,7 +154,6 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
       window.removeEventListener('pointerup', onShootUp);
       dashBtn.removeEventListener('pointerdown', onDashDown);
       reloadBtn.removeEventListener('pointerdown', onReloadDown);
-      hideBtn.removeEventListener('pointerdown', onHideDown);
       host?.remove();
     },
   };

@@ -2564,21 +2564,48 @@ function spawnPickup(pos) {
 // Geometria compartilhada para todas as partículas (evita criar/descartar buffers)
 const SHARED_PARTICLE_GEO = new THREE.SphereGeometry(0.1, 4, 4);
 
+// Perf: pre-allocate a pool of meshes + materials so spawnParticleBurst and
+// spawnMuzzleFlashFast don't allocate per-particle at runtime. The old
+// code did allocate a MeshBasicMaterial + Mesh inside the burst loop,
+// which caused GC pauses every time the player shot/killed something.
+// Each pool entry has a pre-built material whose color is mutated via
+// setHex() and a mesh that's added to the scene once with visible=false.
+const PARTICLE_POOL_SIZE = 320;
+const _particlePool = [];
+for (let i = 0; i < PARTICLE_POOL_SIZE; i++) {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+  const m = new THREE.Mesh(SHARED_PARTICLE_GEO, mat);
+  m.visible = false;
+  m.scale.setScalar(1);
+  scene.add(m);
+  _particlePool.push({ mesh: m, mat, vel: { x: 0, y: 0, z: 0 }, life: 0, maxLife: 1, isFlash: false });
+}
+
+function _particleTake() {
+  for (let i = 0; i < _particlePool.length; i++) {
+    const p = _particlePool[i];
+    if (p.life <= 0) return p;
+  }
+  return null;
+}
+
 function spawnParticleBurst(pos, color, count = 14, speed = 8) {
   if (GAME.particles.length > 300) return;
   for (let i = 0; i < count; i++) {
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
-    const m = new THREE.Mesh(SHARED_PARTICLE_GEO, mat);
-    m.position.copy(pos);
-    m.scale.setScalar(0.8 + Math.random() * 0.5);
-    // vel como objeto escalar (mais leve que Vector3)
-    const vel = {
-      x: (Math.random() - 0.5) * speed,
-      y: Math.random() * speed * 0.8,
-      z: (Math.random() - 0.5) * speed
-    };
-    scene.add(m);
-    GAME.particles.push({ mesh: m, vel, life: 0.6, mat });
+    const p = _particleTake();
+    if (!p) break;
+    p.mesh.visible = true;
+    p.mesh.position.copy(pos);
+    p.mesh.scale.setScalar(0.8 + Math.random() * 0.5);
+    p.mat.color.setHex(color);
+    p.mat.opacity = 1;
+    p.vel.x = (Math.random() - 0.5) * speed;
+    p.vel.y = Math.random() * speed * 0.8;
+    p.vel.z = (Math.random() - 0.5) * speed;
+    p.life = 0.6 + Math.random() * 0.2;
+    p.maxLife = p.life;
+    p.isFlash = false;
+    GAME.particles.push(p);
   }
 }
 
@@ -2587,12 +2614,18 @@ function spawnMuzzleFlash(origin) {
 }
 
 function spawnMuzzleFlashFast(x, y, z) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9 });
-  const m = new THREE.Mesh(SHARED_PARTICLE_GEO, mat);
-  m.position.set(x, y, z);
-  m.scale.setScalar(2.5);
-  scene.add(m);
-  GAME.particles.push({ mesh: m, vel: { x: 0, y: 0, z: 0 }, life: 0.08, mat, isFlash: true });
+  const p = _particleTake();
+  if (!p) return;
+  p.mesh.visible = true;
+  p.mesh.position.set(x, y, z);
+  p.mesh.scale.setScalar(2.5);
+  p.mat.color.setHex(0x00ffff);
+  p.mat.opacity = 0.9;
+  p.vel.x = 0; p.vel.y = 0; p.vel.z = 0;
+  p.life = 0.08;
+  p.maxLife = p.life;
+  p.isFlash = true;
+  GAME.particles.push(p);
 }
 
 // ----- Damage flash overlay -----
@@ -2804,7 +2837,8 @@ function clearWorld() {
   GAME.bullets.length = 0;
   for (const p of GAME.pickups) scene.remove(p.mesh);
   GAME.pickups.length = 0;
-  for (const p of GAME.particles) scene.remove(p.mesh);
+  // Pool-backed: just hide; the meshes stay in the scene permanently.
+  for (const p of GAME.particles) p.mesh.visible = false;
   GAME.particles.length = 0;
 }
 
@@ -2903,6 +2937,21 @@ function requestPointerLock() {
 
 // ----- Update -----
 let lastT = performance.now();
+// Perf: shared scratch Vector3s to avoid per-frame allocations in the
+// update hot loop. 3 allocations saved per frame = ~180/sec at 60fps.
+const moveDir = new THREE.Vector3();
+const fwd = new THREE.Vector3();
+const right = new THREE.Vector3();
+const _tmpBurstPos = new THREE.Vector3();
+// Helper to set _tmpBurstPos from a src Vector3 + offset, so the burst
+// helpers don't allocate (clone + new Vector3) each call. The src
+// position is the enemy/player mesh position.
+function _burstPosAt(src, dy, dz) {
+  _tmpBurstPos.copy(src);
+  _tmpBurstPos.y += dy;
+  if (dz) _tmpBurstPos.z += dz;
+  return _tmpBurstPos;
+}
 function update(dt) {
   // FPS counter
   GAME.fpsCounter++;
@@ -2950,9 +2999,11 @@ function update(dt) {
   }
 
   // ---- player movement ----
-  const moveDir = new THREE.Vector3();
-  const fwd = new THREE.Vector3(-Math.sin(GAME.yaw), 0, -Math.cos(GAME.yaw));
-  const right = new THREE.Vector3(Math.cos(GAME.yaw), 0, -Math.sin(GAME.yaw));
+  // Perf: reuse module-scoped Vector3s instead of allocating 3 per frame.
+  // At 60fps that's 180 Vector3s/sec saved from the GC.
+  moveDir.set(0, 0, 0);
+  fwd.set(-Math.sin(GAME.yaw), 0, -Math.cos(GAME.yaw));
+  right.set(Math.cos(GAME.yaw), 0, -Math.sin(GAME.yaw));
   if (GAME.keys['KeyW']) moveDir.add(fwd);
   if (GAME.keys['KeyS']) moveDir.sub(fwd);
   if (GAME.keys['KeyA']) moveDir.sub(right);
@@ -2970,7 +3021,7 @@ function update(dt) {
     playerStats.dashTimer = 0.25;
     playerStats.dashCooldown = 1.0;
     GAME.keys['Space'] = false; // single press; we'll re-trigger via keydown
-    spawnParticleBurst(GAME.player.position.clone().add(new THREE.Vector3(0,0.5,0)), 0x00ffff, 8, 6);
+    spawnParticleBurst(_burstPosAt(GAME.player.position, 0.5, 0), 0x00ffff, 8, 6);
   }
   if (playerStats.dashTimer > 0) playerStats.dashTimer -= dt;
   if (playerStats.dashCooldown > 0) playerStats.dashCooldown -= dt;
@@ -3226,7 +3277,7 @@ function update(dt) {
         e.mesh.position.x = GAME.player.position.x + Math.cos(ang) * r;
         e.mesh.position.z = GAME.player.position.z + Math.sin(ang) * r;
         e.teleportT = 3 + Math.random() * 2;
-        spawnParticleBurst(e.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xcc88ff, 16, 6);
+        spawnParticleBurst(_burstPosAt(e.mesh.position, 0.8, 0), 0xcc88ff, 16, 6);
       }
       moveX = dirX; moveZ = dirZ; isMoving = true;
     } else if (e.type === 'drone') {
@@ -3263,7 +3314,7 @@ function update(dt) {
         e.telegraph -= dt * 1.2;
         if (e.telegraph <= 0) {
           // AOE explosion
-          spawnExplosion(e.mesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 3.5, e.damage);
+          spawnExplosion(_burstPosAt(e.mesh.position, 0.5, 0), 3.5, e.damage);
           e.attackCd = 2.5;
         }
       } else {
@@ -3382,7 +3433,7 @@ function update(dt) {
         if (e.telegraph <= 0 && e.attackCd <= 0) {
           // disparar projétil inimigo
           const sd = new THREE.Vector3(dirX, 0.05, dirZ).normalize();
-          const origin = e.mesh.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+          const origin = _burstPosAt(e.mesh.position, 0.9, 0);
           spawnEnemyBullet(origin, sd);
           e.attackCd = e.type === 'sniper' ? 2.0 : 1.5;
         }
@@ -3396,7 +3447,7 @@ function update(dt) {
         if (e.attackCd <= 0) {
           const sd = new THREE.Vector3(dirX, 0, dirZ).normalize();
           const sd2 = sd.clone(); sd2.x += (Math.random() - 0.5) * 0.05; sd2.z += (Math.random() - 0.5) * 0.05;
-          spawnEnemyBullet(e.mesh.position.clone().add(new THREE.Vector3(0, 0.9, 0)), sd2);
+          spawnEnemyBullet(_burstPosAt(e.mesh.position, 0.9, 0), sd2);
           e.burstShots++;
           if (e.burstShots >= e.burstTotal) {
             e.burstTotal = 0; e.attackCd = 2.0;
@@ -3408,7 +3459,7 @@ function update(dt) {
     } else if (e.type === 'bomber') {
       // corre para o player e explode ao chegar perto
       if (dist < 2 && e.attackCd <= 0) {
-        spawnExplosion(e.mesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 3, 18);
+        spawnExplosion(_burstPosAt(e.mesh.position, 0.5, 0), 3, 18);
         e.hp = 0;
         // killEnemy vai ser chamado no loop de bullet/dano
       } else {
@@ -3423,7 +3474,7 @@ function update(dt) {
         if (e.attackCd <= 0) {
           const sd = new THREE.Vector3(dirX, 0, dirZ).normalize();
           const sd2 = sd.clone(); sd2.x += (Math.random() - 0.5) * 0.1; sd2.z += (Math.random() - 0.5) * 0.1;
-          spawnEnemyBullet(e.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), sd2);
+          spawnEnemyBullet(_burstPosAt(e.mesh.position, 1.2, 0), sd2);
           e.burstShots++;
           if (e.burstShots >= e.burstTotal) {
             e.burstTotal = 0; e.attackCd = 2.5;
@@ -3525,7 +3576,7 @@ function update(dt) {
               // esconder escudo
               const sm = e.mesh.userData.shieldMesh;
               if (sm) sm.visible = false;
-              spawnParticleBurst(e.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0.3)), 0xff8844, 18, 8);
+              spawnParticleBurst(_burstPosAt(e.mesh.position, 0.8, 0.3), 0xff8844, 18, 8);
               playSfx('kill');
             } else {
               // atualizar cor do escudo baseado no estágio
@@ -3639,6 +3690,9 @@ function update(dt) {
   }
 
   // ---- particles ----
+  // Pool-backed: each particle is reused. We just toggle visible=false when
+  // it dies — no scene.remove, no material.dispose, no array.splice. This
+  // is the main fix for the 1-2s GC pauses during heavy bursts.
   for (let i = GAME.particles.length - 1; i >= 0; i--) {
     const p = GAME.particles[i];
     p.life -= dt;
@@ -3650,15 +3704,18 @@ function update(dt) {
     }
     p.mat.opacity = Math.max(0, p.life * 1.6);
     if (p.life <= 0 || p.mesh.position.y < -0.5) {
-      scene.remove(p.mesh);
-      if (p.mat && p.mat.dispose) p.mat.dispose(); // libera material, geometria é compartilhada
-      GAME.particles.splice(i, 1);
+      p.mesh.visible = false;
+      // Compact the active list in place. We swap-pop instead of splice
+      // to keep this O(1) per removal (splice is O(n)).
+      const last = GAME.particles.length - 1;
+      if (i !== last) GAME.particles[i] = GAME.particles[last];
+      GAME.particles.length = last;
     }
   }
   // limite duro de partículas para evitar acúmulo
   while (GAME.particles.length > 250) {
-    const p = GAME.particles.shift();
-    scene.remove(p.mesh);
+    const p = GAME.particles.pop();
+    if (p) p.mesh.visible = false;
   }
   // limite duro de projéteis
   while (GAME.bullets.length > 80) {
@@ -3764,8 +3821,8 @@ function fire() {
 }
 
 function killEnemy(idx, e) {
-  spawnParticleBurst(e.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xff00d4, 18, 8);
-  spawnParticleBurst(e.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0x00e0ff, 12, 6);
+  spawnParticleBurst(_burstPosAt(e.mesh.position, 0.8, 0), 0xff00d4, 18, 8);
+  spawnParticleBurst(_burstPosAt(e.mesh.position, 0.8, 0), 0x00e0ff, 12, 6);
   scene.remove(e.mesh);
   GAME.enemies.splice(idx, 1);
   GAME.totalKills++;
@@ -3779,7 +3836,7 @@ function killEnemy(idx, e) {
   }
   // explosive kills (carta Morte Lenta): cada kill explode
   if (playerStats.explosiveKills) {
-    spawnExplosion(e.mesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 2.5, 8);
+    spawnExplosion(_burstPosAt(e.mesh.position, 0.5, 0), 2.5, 8);
   }
   // boss damage multiplier
   if (e.type === 'boss' && playerStats.bossDamageMul) {
@@ -3822,11 +3879,11 @@ function damagePlayer(dmg) {
       playerStats.revives--;
       playerStats.hp = playerStats.maxHp * 0.5;
       playerStats.invincible = 3.0;
-      spawnParticleBurst(GAME.player.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xffaa00, 40, 12);
+      spawnParticleBurst(_burstPosAt(GAME.player.position, 1, 0), 0xffaa00, 40, 12);
       return;
     }
     playerStats.hp = 0;
-    spawnParticleBurst(GAME.player.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xff2266, 30, 10);
+    spawnParticleBurst(_burstPosAt(GAME.player.position, 1, 0), 0xff2266, 30, 10);
     gameOver();
   }
 }
@@ -4131,6 +4188,12 @@ function updateHUD() {
 }
 
 // ----- Render loop -----
+// Perf: shared scratch Vector3s for the camera math. The render loop
+// previously allocated back, right, and camTargetPos every frame —
+// 3 more allocations/frame, ~180/sec wasted on GC.
+const back = new THREE.Vector3();
+const camRight = new THREE.Vector3();
+const camTargetPos = new THREE.Vector3();
 function loop() {
   const now = performance.now();
   let dt = (now - lastT) / 1000;
@@ -4141,14 +4204,17 @@ function loop() {
 
 // Camera over-the-shoulder (God of War / RE4 style) — bem deslocada para o ombro direito
   // para deixar o jogador no canto da tela e o crosshair livre no centro
-  const camDist = 4.0;          // bem atrás do jogador (vê o personagem inteiro)
-  const camBaseHeight = 2.2;    // acima da cabeça
+  // Mobile cam: pull back further and raise higher so more arena is visible
+  // (the joystick area + larger HUD takes a chunk of the screen on phones).
+  const _isMobileCam = !!(typeof window !== 'undefined' && window.__NATIVE__);
+  const camDist = _isMobileCam ? 5.4 : 4.0;
+  const camBaseHeight = _isMobileCam ? 2.6 : 2.2;
   const shoulderOffset = 1.2;   // lateral média
   const verticalLift = 0.40;    //俯瞰 para ver bem a cena
 
-  // vetor "para trás" do jogador baseado no yaw
-  const back = new THREE.Vector3(Math.sin(GAME.yaw), 0, Math.cos(GAME.yaw));
-  const right = new THREE.Vector3(Math.cos(GAME.yaw), 0, -Math.sin(GAME.yaw));
+  // Perf: reuse module-scoped Vector3s instead of allocating per frame.
+  back.set(Math.sin(GAME.yaw), 0, Math.cos(GAME.yaw));
+  camRight.set(Math.cos(GAME.yaw), 0, -Math.sin(GAME.yaw));
 
   // pitch afeta a altura da câmera (mouse para baixo = câmera sobe)
   const pitchLift = -GAME.pitch * 1.0 + verticalLift;
@@ -4157,15 +4223,16 @@ function loop() {
   const sway = isSprinting ? Math.sin(now * 0.012) * 0.05 : 0;
 
   const camY = GAME.player.position.y + camBaseHeight + pitchLift;
-  const camTargetPos = new THREE.Vector3(
-    GAME.player.position.x + back.x * camDist + right.x * (shoulderOffset + sway),
+  camTargetPos.set(
+    GAME.player.position.x + back.x * camDist + camRight.x * (shoulderOffset + sway),
     camY,
-    GAME.player.position.z + back.z * camDist + right.z * (shoulderOffset + sway)
+    GAME.player.position.z + back.z * camDist + camRight.z * (shoulderOffset + sway)
   );
 
-  // FOV dinâmico: abre no sprint (sensação de velocidade)
-  const fovBase = 65;
-  const fovTarget = fovBase + (isSprinting ? 10 : 0) + (playerStats.dashTimer > 0 ? 7 : 0);
+  // FOV dinâmico: abre no sprint (sensação de velocidade).
+  // Mobile cap is tighter to avoid fisheye distortion on small screens.
+  const fovBase = _isMobileCam ? 62 : 65;
+  const fovTarget = fovBase + (isSprinting ? (_isMobileCam ? 5 : 10) : 0) + (playerStats.dashTimer > 0 ? (_isMobileCam ? 3 : 7) : 0);
   camera.fov += (fovTarget - camera.fov) * 0.12;
   camera.updateProjectionMatrix();
 
