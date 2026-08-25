@@ -3011,7 +3011,7 @@ function update(dt) {
   // dash
   // Mobile UX: allow dash even when not actively moving (the joystick can
   // be idle when the user taps DASH). On desktop, the original gate
-  // `&& moveDir.lengthSq() > 0` still applies because the keyboard doesn't
+  // (moveDir.lengthSq > 0) still applies because the keyboard doesn't
   // have an idle-but-dash use case.
   if (GAME.keys['Space'] && playerStats.dashCooldown <= 0) {
     const isMobile = !!(typeof window !== 'undefined' && window.__NATIVE__);

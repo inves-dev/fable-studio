@@ -145,9 +145,25 @@ if (document.readyState === 'loading') {
   boot();
 }
 
-// On native, lock the viewport further (no rubber-band, no tap-hold selection).
+// On native, lock the viewport further (no rubber-band, no tap-hold selection)
+// and force landscape orientation. The game is built for landscape only.
 if (isNative) {
   document.addEventListener('gesturestart', (e) => e.preventDefault());
+  // Force landscape. screen.orientation.lock returns a Promise; we ignore
+  // failures (some Android devices / WebView versions don't support it).
+  // Also: Capacitor exposes a screen-orientation plugin via @capacitor/screen-orientation,
+  // but adding that as a dependency for one line is overkill — the Web API
+  // is the simpler path for now.
+  const lockLandscape = async (): Promise<void> => {
+    const so = (screen as any).orientation;
+    if (so && typeof so.lock === 'function') {
+      try { await so.lock('landscape'); } catch { /* unsupported */ }
+    }
+  };
+  lockLandscape();
+  // Re-lock on fullscreenchange / orientationchange (the lock can drop when
+  // the user pulls down the notification shade or rotates).
+  window.addEventListener('orientationchange', () => { lockLandscape(); });
 }
 
 // Debug overlay: shows GAME state + input flags. Cheap text-only updates
