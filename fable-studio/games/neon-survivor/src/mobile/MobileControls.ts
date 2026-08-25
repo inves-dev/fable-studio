@@ -106,17 +106,23 @@ export function setupMobileControls(handlers: Handlers): { dispose: () => void }
   const detachMove = setupJoystick(
     moveEl, moveStick,
     (dx, dy) => {
+      // Always read window.GAME fresh on each frame — the GAME object can
+      // be replaced across resets, so caching a reference at setup time
+      // could leave us writing to a stale dict.
       const dead = 0.18;
-      const k = (window as any).GAME?.keys ?? {};
+      const g = (window as any).GAME;
+      if (!g) return;
+      const k = g.keys;
+      if (!k) return;
       k.KeyW = dy < -dead;
       k.KeyS = dy > dead;
       k.KeyA = dx < -dead;
       k.KeyD = dx > dead;
-      if ((window as any).GAME) (window as any).GAME.keys = k;
     },
     () => {
-      const k = (window as any).GAME?.keys ?? {};
-      k.KeyW = k.KeyS = k.KeyA = k.KeyD = false;
+      const g = (window as any).GAME;
+      if (!g || !g.keys) return;
+      g.keys.KeyW = g.keys.KeyS = g.keys.KeyA = g.keys.KeyD = false;
     },
   );
 

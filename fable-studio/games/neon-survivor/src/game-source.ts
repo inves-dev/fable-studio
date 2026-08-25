@@ -917,8 +917,8 @@ function buildGround() {
     }
   }
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0x2a2438, metalness: 0.3, roughness: 0.55, emissive: 0x1a1430, emissiveIntensity: 0.5
+  const mat = new THREE.MeshLambertMaterial({
+    color: 0x2a2438, emissive: 0x1a1430, emissiveIntensity: 0.5
   });
   const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
@@ -1117,14 +1117,11 @@ function buildCity() {
       texClone.colorSpace = THREE.SRGBColorSpace;
       emClone.colorSpace = THREE.SRGBColorSpace;
       // MeshStandardMaterial: aceita emissiveMap (para janelas brilharem)
-      const mat = new THREE.MeshStandardMaterial({
+      const mat = new THREE.MeshLambertMaterial({
         map: texClone,
         emissiveMap: emClone,
         emissive: 0xffffff,
-        emissiveIntensity: 1.0,
-        metalness: 0,
-        roughness: 1
-      });
+        emissiveIntensity: 1.0,});
       const geo = new THREE.BoxGeometry(wMod, hMod, dMod);
       const b = new THREE.Mesh(geo, mat);
       b.position.set(cx, hMod / 2, cz);
@@ -1177,7 +1174,7 @@ function buildLamps() {
       const color = Math.random() < 0.5 ? 0x00e0ff : 0xff00d4;
       const post = new THREE.Mesh(
         new THREE.CylinderGeometry(0.1, 0.15, 4.5, 8),
-        new THREE.MeshStandardMaterial({ color: 0x222233, metalness: 0.6, roughness: 0.4 })
+        new THREE.MeshLambertMaterial({ color: 0x222233,})
       );
       post.position.set(x, 2.25, z);
       post.castShadow = false;
@@ -1193,7 +1190,7 @@ function buildLamps() {
       // only add point light to a subset for perf
       let light = null;
       if (count % 2 === 0) {
-        light = new THREE.PointLight(color, 1.2, 14, 1.8);
+        light = new THREE.PointLight(color, 1.2, 6, 1.8);
         light.position.set(x, 4.5, z);
         light.castShadow = false;
         scene.add(light);
@@ -1210,15 +1207,10 @@ scene.add(new THREE.AmbientLight(0x5060a0, 2.0));
 const hemi = new THREE.HemisphereLight(0xa0b8e8, 0x301040, 1.2);
 scene.add(hemi);
 
-// Directional moonlight with shadows
+// Directional moonlight (shadow map is disabled globally; we leave castShadow
+// false to skip shadow frustum computation each frame).
 const moon = new THREE.DirectionalLight(0xa0b0e0, 1.3);
 moon.position.set(40, 60, 20);
-moon.castShadow = true;
-moon.shadow.mapSize.set(1024, 1024);
-moon.shadow.camera.near = 1; moon.shadow.camera.far = 200;
-moon.shadow.camera.left = -60; moon.shadow.camera.right = 60;
-moon.shadow.camera.top = 60; moon.shadow.camera.bottom = -60;
-moon.shadow.bias = -0.0005;
 scene.add(moon);
 
 function buildWeaponMesh(weaponIdx) {
@@ -1227,12 +1219,12 @@ function buildWeaponMesh(weaponIdx) {
     // PISTOLA — compacta, cano curto
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.10, 0.12, 0.30),
-      new THREE.MeshStandardMaterial({ color: 0x202028, metalness: 0.85, roughness: 0.25, emissive: 0x00d4ff, emissiveIntensity: 0.4 })
+      new THREE.MeshLambertMaterial({ color: 0x202028, emissive: 0x00d4ff, emissiveIntensity: 0.4 })
     );
     g.add(body);
     const barrel = new THREE.Mesh(
       new THREE.CylinderGeometry(0.025, 0.03, 0.20, 8),
-      new THREE.MeshStandardMaterial({ color: 0x101018, metalness: 0.9, roughness: 0.2 })
+      new THREE.MeshLambertMaterial({ color: 0x101018,})
     );
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0, 0, 0.22);
@@ -1246,13 +1238,13 @@ function buildWeaponMesh(weaponIdx) {
     g.add(muzzle);
     const grip = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.16, 0.10),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.6, roughness: 0.4 })
+      new THREE.MeshLambertMaterial({ color: 0x1a1a22,})
     );
     grip.position.set(0, -0.14, -0.05);
     g.add(grip);
     const mag = new THREE.Mesh(
       new THREE.BoxGeometry(0.05, 0.12, 0.08),
-      new THREE.MeshStandardMaterial({ color: 0x00aacc, metalness: 0.7, roughness: 0.3, emissive: 0x00d4ff, emissiveIntensity: 0.6 })
+      new THREE.MeshLambertMaterial({ color: 0x00aacc, emissive: 0x00d4ff, emissiveIntensity: 0.6 })
     );
     mag.position.set(0, -0.04, 0.05);
     g.add(mag);
@@ -1260,12 +1252,12 @@ function buildWeaponMesh(weaponIdx) {
     // RIFLE — longo, cano estendido, magazine grande
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.10, 0.12, 0.55),
-      new THREE.MeshStandardMaterial({ color: 0x252028, metalness: 0.85, roughness: 0.3, emissive: 0xff00d4, emissiveIntensity: 0.4 })
+      new THREE.MeshLambertMaterial({ color: 0x252028, emissive: 0xff00d4, emissiveIntensity: 0.4 })
     );
     g.add(body);
     const barrel = new THREE.Mesh(
       new THREE.CylinderGeometry(0.022, 0.025, 0.35, 8),
-      new THREE.MeshStandardMaterial({ color: 0x101015, metalness: 0.9, roughness: 0.2 })
+      new THREE.MeshLambertMaterial({ color: 0x101015,})
     );
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0, 0, 0.42);
@@ -1279,7 +1271,7 @@ function buildWeaponMesh(weaponIdx) {
     g.add(muzzle);
     const mag = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.18, 0.10),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a20, metalness: 0.7, roughness: 0.3, emissive: 0xff00aa, emissiveIntensity: 0.5 })
+      new THREE.MeshLambertMaterial({ color: 0x1a1a20, emissive: 0xff00aa, emissiveIntensity: 0.5 })
     );
     mag.position.set(0, -0.16, 0.05);
     g.add(mag);
@@ -1293,7 +1285,7 @@ function buildWeaponMesh(weaponIdx) {
     // coronha
     const stock = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.12, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0x15151a, metalness: 0.5, roughness: 0.5 })
+      new THREE.MeshLambertMaterial({ color: 0x15151a,})
     );
     stock.position.set(0, 0, -0.32);
     g.add(stock);
@@ -1301,14 +1293,14 @@ function buildWeaponMesh(weaponIdx) {
     // SHOTGUN — grossa, dois canos, pesada
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.14, 0.14, 0.50),
-      new THREE.MeshStandardMaterial({ color: 0x2a1a10, metalness: 0.7, roughness: 0.4, emissive: 0xffaa00, emissiveIntensity: 0.4 })
+      new THREE.MeshLambertMaterial({ color: 0x2a1a10, emissive: 0xffaa00, emissiveIntensity: 0.4 })
     );
     g.add(body);
     // dois canos
     for (let i = 0; i < 2; i++) {
       const barrel = new THREE.Mesh(
         new THREE.CylinderGeometry(0.035, 0.04, 0.40, 8),
-        new THREE.MeshStandardMaterial({ color: 0x1a0a05, metalness: 0.85, roughness: 0.3 })
+        new THREE.MeshLambertMaterial({ color: 0x1a0a05,})
       );
       barrel.rotation.x = Math.PI / 2;
       barrel.position.set(i === 0 ? -0.035 : 0.035, 0, 0.35);
@@ -1322,13 +1314,13 @@ function buildWeaponMesh(weaponIdx) {
     g.add(muzzle);
     const grip = new THREE.Mesh(
       new THREE.BoxGeometry(0.10, 0.18, 0.10),
-      new THREE.MeshStandardMaterial({ color: 0x1a0a05, metalness: 0.6, roughness: 0.4 })
+      new THREE.MeshLambertMaterial({ color: 0x1a0a05,})
     );
     grip.position.set(0, -0.18, -0.05);
     g.add(grip);
     const stock = new THREE.Mesh(
       new THREE.BoxGeometry(0.10, 0.14, 0.20),
-      new THREE.MeshStandardMaterial({ color: 0x1a0a05, metalness: 0.5, roughness: 0.5 })
+      new THREE.MeshLambertMaterial({ color: 0x1a0a05,})
     );
     stock.position.set(0, 0, -0.32);
     g.add(stock);
@@ -1340,20 +1332,20 @@ function buildBazookaMesh() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.10, 0.10, 0.55, 8),
-    new THREE.MeshStandardMaterial({ color: 0x4a3520, metalness: 0.5, roughness: 0.5, emissive: 0x00ff00, emissiveIntensity: 0.3 })
+    new THREE.MeshLambertMaterial({ color: 0x4a3520, emissive: 0x00ff00, emissiveIntensity: 0.3 })
   );
   body.rotation.x = Math.PI / 2;
   g.add(body);
   const tip = new THREE.Mesh(
     new THREE.ConeGeometry(0.10, 0.15, 8),
-    new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.7, roughness: 0.3, emissive: 0xff0000, emissiveIntensity: 0.5 })
+    new THREE.MeshLambertMaterial({ color: 0x666666, emissive: 0xff0000, emissiveIntensity: 0.5 })
   );
   tip.rotation.x = Math.PI / 2;
   tip.position.z = 0.30;
   g.add(tip);
   const handle = new THREE.Mesh(
     new THREE.BoxGeometry(0.10, 0.14, 0.12),
-    new THREE.MeshStandardMaterial({ color: 0x2a1a0a, metalness: 0.4, roughness: 0.6 })
+    new THREE.MeshLambertMaterial({ color: 0x2a1a0a,})
   );
   handle.position.set(0, -0.16, -0.05);
   g.add(handle);
@@ -1366,7 +1358,7 @@ function buildMinigunMesh() {
   for (let i = 0; i < 6; i++) {
     const barrel = new THREE.Mesh(
       new THREE.CylinderGeometry(0.025, 0.025, 0.45, 6),
-      new THREE.MeshStandardMaterial({ color: 0x303040, metalness: 0.9, roughness: 0.2 })
+      new THREE.MeshLambertMaterial({ color: 0x303040,})
     );
     barrel.rotation.x = Math.PI / 2;
     barrel.rotation.z = (i / 6) * Math.PI * 2;
@@ -1375,14 +1367,14 @@ function buildMinigunMesh() {
   // corpo central
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.20, 0.20, 0.30),
-    new THREE.MeshStandardMaterial({ color: 0x404050, metalness: 0.8, roughness: 0.3, emissive: 0xff6600, emissiveIntensity: 0.5 })
+    new THREE.MeshLambertMaterial({ color: 0x404050, emissive: 0xff6600, emissiveIntensity: 0.5 })
   );
   body.position.z = -0.05;
   g.add(body);
   // coronha
   const stock = new THREE.Mesh(
     new THREE.BoxGeometry(0.12, 0.16, 0.22),
-    new THREE.MeshStandardMaterial({ color: 0x202028, metalness: 0.5, roughness: 0.5 })
+    new THREE.MeshLambertMaterial({ color: 0x202028,})
   );
   stock.position.set(0, 0, -0.32);
   g.add(stock);
@@ -1394,7 +1386,7 @@ function buildLaserMesh() {
   // arma futurística longa
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.08, 0.10, 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x001a22, metalness: 0.95, roughness: 0.1, emissive: 0x00ffff, emissiveIntensity: 1.0 })
+    new THREE.MeshLambertMaterial({ color: 0x001a22, emissive: 0x00ffff, emissiveIntensity: 1.0 })
   );
   g.add(body);
   // emissor brilhante na ponta
@@ -1405,7 +1397,7 @@ function buildLaserMesh() {
   emitter.rotation.x = Math.PI / 2;
   emitter.position.z = 0.30;
   g.add(emitter);
-  const lt = new THREE.PointLight(0x00ffff, 0.8, 3, 2);
+  const lt = new THREE.PointLight(0x00ffff, 0.8, 2, 2);
   lt.position.set(0, 0, 0.35);
   g.add(lt);
   return g;
@@ -1416,12 +1408,12 @@ function buildRailgunMesh() {
   // rifle grosso e longo
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.12, 0.14, 0.70),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a40, metalness: 0.95, roughness: 0.1, emissive: 0xaaaaff, emissiveIntensity: 0.4 })
+    new THREE.MeshLambertMaterial({ color: 0x2a2a40, emissive: 0xaaaaff, emissiveIntensity: 0.4 })
   );
   g.add(body);
   const rails = new THREE.Mesh(
     new THREE.BoxGeometry(0.04, 0.04, 0.70),
-    new THREE.MeshStandardMaterial({ color: 0xff0080, metalness: 0.95, roughness: 0.05, emissive: 0xff00ff, emissiveIntensity: 1.5 })
+    new THREE.MeshLambertMaterial({ color: 0xff0080, emissive: 0xff00ff, emissiveIntensity: 1.5 })
   );
   rails.position.y = 0.10;
   g.add(rails);
@@ -1433,14 +1425,14 @@ function buildFlamethrowerMesh() {
   // tanque nas costas
   const tank = new THREE.Mesh(
     new THREE.CylinderGeometry(0.15, 0.15, 0.30, 8),
-    new THREE.MeshStandardMaterial({ color: 0x552200, metalness: 0.5, roughness: 0.5 })
+    new THREE.MeshLambertMaterial({ color: 0x552200,})
   );
   tank.position.set(0, -0.05, -0.30);
   g.add(tank);
   // lança-chamas
   const lance = new THREE.Mesh(
     new THREE.CylinderGeometry(0.06, 0.10, 0.50, 8),
-    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2, emissive: 0xff4400, emissiveIntensity: 0.6 })
+    new THREE.MeshLambertMaterial({ color: 0x222222, emissive: 0xff4400, emissiveIntensity: 0.6 })
   );
   lance.rotation.x = Math.PI / 2;
   lance.position.z = 0.30;
@@ -1460,7 +1452,7 @@ function buildPlasmaMesh() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.10, 0.12, 0.50),
-    new THREE.MeshStandardMaterial({ color: 0x220044, metalness: 0.85, roughness: 0.2, emissive: 0x8800ff, emissiveIntensity: 0.6 })
+    new THREE.MeshLambertMaterial({ color: 0x220044, emissive: 0x8800ff, emissiveIntensity: 0.6 })
   );
   g.add(body);
   // bobinas de plasma
@@ -1481,20 +1473,20 @@ function buildPlayer() {
   const root = new THREE.Group();
 
   // materials
-  const skin = new THREE.MeshStandardMaterial({ color: 0x6b5a4a, roughness: 0.7, metalness: 0.0 });
-  const armorDark = new THREE.MeshStandardMaterial({ color: 0x1c1d28, metalness: 0.45, roughness: 0.45, emissive: 0x0a0a20, emissiveIntensity: 0.4 });
-  const armorAccent = new THREE.MeshStandardMaterial({ color: 0x14152a, metalness: 0.55, roughness: 0.35, emissive: 0x00d4ff, emissiveIntensity: 0.5 });
-  const armorMagenta = new THREE.MeshStandardMaterial({ color: 0x1a0a1a, metalness: 0.5, roughness: 0.4, emissive: 0xff00d4, emissiveIntensity: 0.7 });
-  const cloth = new THREE.MeshStandardMaterial({ color: 0x0e0a1a, metalness: 0.2, roughness: 0.85 });
-  const boot = new THREE.MeshStandardMaterial({ color: 0x0a0a14, metalness: 0.4, roughness: 0.6 });
-  const visorMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 1.4, metalness: 0.2, roughness: 0.1 });
-  const gunDark = new THREE.MeshStandardMaterial({ color: 0x15151c, metalness: 0.85, roughness: 0.25, emissive: 0x00d4ff, emissiveIntensity: 0.3 });
-  const gunAccent = new THREE.MeshStandardMaterial({ color: 0x222236, metalness: 0.7, roughness: 0.3, emissive: 0xff00aa, emissiveIntensity: 0.5 });
+  const skin = new THREE.MeshLambertMaterial({ color: 0x6b5a4a,});
+  const armorDark = new THREE.MeshLambertMaterial({ color: 0x1c1d28, emissive: 0x0a0a20, emissiveIntensity: 0.4 });
+  const armorAccent = new THREE.MeshLambertMaterial({ color: 0x14152a, emissive: 0x00d4ff, emissiveIntensity: 0.5 });
+  const armorMagenta = new THREE.MeshLambertMaterial({ color: 0x1a0a1a, emissive: 0xff00d4, emissiveIntensity: 0.7 });
+  const cloth = new THREE.MeshLambertMaterial({ color: 0x0e0a1a,});
+  const boot = new THREE.MeshLambertMaterial({ color: 0x0a0a14,});
+  const visorMat = new THREE.MeshLambertMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 1.4,});
+  const gunDark = new THREE.MeshLambertMaterial({ color: 0x15151c, emissive: 0x00d4ff, emissiveIntensity: 0.3 });
+  const gunAccent = new THREE.MeshLambertMaterial({ color: 0x222236, emissive: 0xff00aa, emissiveIntensity: 0.5 });
 
   // ----- PELVIS (raiz do corpo) -----
   const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.22, 0.28), armorDark);
   pelvis.position.y = 0.92;
-  pelvis.castShadow = true;
+  pelvis.castShadow = false;
   root.add(pelvis);
 
   // ----- TORSO (peitoral/armadura) -----
@@ -1503,7 +1495,7 @@ function buildPlayer() {
   root.add(torsoGroup);
   // tronco principal (capsule para forma anatômica)
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.35, 8, 14), armorDark);
-  torso.castShadow = true; torso.receiveShadow = true;
+  torso.castShadow = false; torso.receiveShadow = false;
   torsoGroup.add(torso);
   // peitoral (placa frontal)
   const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.42, 0.08), armorAccent);
@@ -1539,7 +1531,7 @@ function buildPlayer() {
   nozzleR.position.x = 0.12;
   torsoGroup.add(nozzleR);
   // luz do jato (point light no jetpack)
-  const packLight = new THREE.PointLight(0xff00d4, 0.8, 2.5, 2);
+  const packLight = new THREE.PointLight(0xff00d4, 0.8, 2, 2);
   packLight.position.set(0, -0.18, -0.5);
   torsoGroup.add(packLight);
 
@@ -1669,7 +1661,7 @@ function buildPlayer() {
   // ----- CAPA (pequena, sobre os ombros) -----
   const cape = new THREE.Mesh(
     new THREE.PlaneGeometry(0.5, 0.6, 4, 6),
-    new THREE.MeshStandardMaterial({ color: 0x14102a, side: THREE.DoubleSide, roughness: 0.9, metalness: 0.1, emissive: 0x080418, emissiveIntensity: 0.4 })
+    new THREE.MeshLambertMaterial({ color: 0x14102a, side: THREE.DoubleSide, emissive: 0x080418, emissiveIntensity: 0.4 })
   );
   cape.position.set(0, 0.10, -0.28);
   cape.rotation.x = 0.2;
@@ -1681,7 +1673,7 @@ function buildPlayer() {
   const initialWeapon = buildWeaponMesh(0);
   gunGroup.add(initialWeapon);
   // luz da arma
-  const gunLight = new THREE.PointLight(0x00d4ff, 0.6, 2.5, 2);
+  const gunLight = new THREE.PointLight(0x00d4ff, 0.6, 2, 2);
   gunLight.position.set(0, 0, 0.5);
   gunGroup.add(gunLight);
   // posicionar a arma na mão direita
@@ -2003,8 +1995,8 @@ function makeEnemy(type) {
 function buildDroneMesh() {
   const p = { body: 0x2a2a3a, accent: 0x66ffaa, glow: 0x88ffcc, joint: 0x101020, eye: 0xaaffff };
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: p.body, metalness: 0.7, roughness: 0.3, emissive: p.body, emissiveIntensity: 0.3 });
-  const matAccent = new THREE.MeshStandardMaterial({ color: p.accent, metalness: 0.5, roughness: 0.4, emissive: p.glow, emissiveIntensity: 0.7 });
+  const mat = new THREE.MeshLambertMaterial({ color: p.body, emissive: p.body, emissiveIntensity: 0.3 });
+  const matAccent = new THREE.MeshLambertMaterial({ color: p.accent, emissive: p.glow, emissiveIntensity: 0.7 });
   // corpo central (nave/OVNI)
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6), mat);
   body.scale.set(1, 0.5, 1);
@@ -2015,7 +2007,7 @@ function buildDroneMesh() {
   cockpit.position.set(0, 0.05, 0.2);
   g.add(cockpit);
   // 4 hélices (esferas pequenas)
-  const rotorMat = new THREE.MeshStandardMaterial({ color: p.joint, metalness: 0.8, roughness: 0.2 });
+  const rotorMat = new THREE.MeshLambertMaterial({ color: p.joint,});
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2;
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4), rotorMat);
@@ -2028,7 +2020,7 @@ function buildDroneMesh() {
     g.add(rotor);
   }
   // luz brilhante embaixo
-  const lt = new THREE.PointLight(p.glow, 0.6, 4, 2);
+  const lt = new THREE.PointLight(p.glow, 0.6, 2, 2);
   lt.position.set(0, -0.3, 0);
   g.add(lt);
   g.userData = { type: 'drone', rotors: g.children.filter(c => c.material && c.material.emissiveIntensity > 0.5) };
@@ -2038,8 +2030,8 @@ function buildDroneMesh() {
 function buildSentinelMesh() {
   const p = { body: 0x3a2a1a, accent: 0xffaa66, glow: 0xffcc88, joint: 0x1a1010, eye: 0xffddaa };
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: p.body, metalness: 0.6, roughness: 0.4, emissive: p.body, emissiveIntensity: 0.3 });
-  const matAccent = new THREE.MeshStandardMaterial({ color: p.accent, metalness: 0.5, roughness: 0.3, emissive: p.glow, emissiveIntensity: 0.6 });
+  const mat = new THREE.MeshLambertMaterial({ color: p.body, emissive: p.body, emissiveIntensity: 0.3 });
+  const matAccent = new THREE.MeshLambertMaterial({ color: p.accent, emissive: p.glow, emissiveIntensity: 0.6 });
   // base/tronco
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.20, 0.30, 6, 10), mat);
   torso.castShadow = false;
@@ -2061,7 +2053,7 @@ function buildSentinelMesh() {
   eye.position.set(0, 1.30, 0.32);
   g.add(eye);
   // tripé (3 pernas)
-  const legMat = new THREE.MeshStandardMaterial({ color: p.joint, metalness: 0.7, roughness: 0.3 });
+  const legMat = new THREE.MeshLambertMaterial({ color: p.joint,});
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2;
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 4), legMat);
@@ -2072,7 +2064,7 @@ function buildSentinelMesh() {
     g.add(leg);
   }
   // luz do sniper
-  const lt = new THREE.PointLight(p.glow, 0.8, 3, 2);
+  const lt = new THREE.PointLight(p.glow, 0.8, 2, 2);
   lt.position.set(0, 1.3, 0.3);
   g.add(lt);
   g.userData = { type: 'sentinel', legLGroup: null, legRGroup: null };
@@ -2106,9 +2098,9 @@ function buildEnemyMesh(type) {
   // material — phantom é translúcido
   const matBase = { color: p.body, metalness: 0.5, roughness: 0.45, emissive: p.body, emissiveIntensity: 0.25 };
   if (type === 'phantom') { matBase.transparent = true; matBase.opacity = 0.6; }
-  const mat = new THREE.MeshStandardMaterial(matBase);
-  const matAccent = new THREE.MeshStandardMaterial({ color: p.accent, metalness: 0.6, roughness: 0.35, emissive: p.glow, emissiveIntensity: 0.5 });
-  const matJoint = new THREE.MeshStandardMaterial({ color: p.joint, metalness: 0.7, roughness: 0.4 });
+  const mat = new THREE.MeshLambertMaterial(matBase);
+  const matAccent = new THREE.MeshLambertMaterial({ color: p.accent, emissive: p.glow, emissiveIntensity: 0.5 });
+  const matJoint = new THREE.MeshLambertMaterial({ color: p.joint,});
 
   // anatomia base (varia por tipo)
   let torsoR = 0.30, torsoH = 0.40, headR = 0.18, legLen = 0.50, legR = 0.09, armLen = 0.40, armR = 0.08;
@@ -2310,7 +2302,7 @@ function buildEnemyMesh(type) {
 
   // ----- detalhe extra: brilho no chão do tank/boss -----
   if (type === 'tank' || type === 'boss') {
-    const glow = new THREE.PointLight(p.glow, 0.6, 3, 2);
+    const glow = new THREE.PointLight(p.glow, 0.6, 2, 2);
     glow.position.set(0, legLen + 0.20, torsoR + 0.2);
     g.add(glow);
   }
@@ -2320,8 +2312,8 @@ function buildEnemyMesh(type) {
   if (type === 'shieldbearer') {
     shieldMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.42, 0.42, 0.06, 6),
-      new THREE.MeshStandardMaterial({
-        color: 0x66ccff, metalness: 0.8, roughness: 0.2,
+      new THREE.MeshLambertMaterial({
+        color: 0x66ccff,
         emissive: 0x4488cc, emissiveIntensity: 0.7,
         transparent: true, opacity: 0.85, side: THREE.DoubleSide
       })
@@ -2543,7 +2535,7 @@ function spawnPickup(pos) {
   const g = new THREE.Group();
   const cube = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.6, 0.6),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, metalness: 0.3, roughness: 0.3 })
+    new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.8,})
   );
   g.add(cube);
   const ring = new THREE.Mesh(
@@ -2552,7 +2544,7 @@ function spawnPickup(pos) {
   );
   ring.rotation.x = Math.PI / 2;
   g.add(ring);
-  const lt = new THREE.PointLight(color, 1.0, 4, 2);
+  const lt = new THREE.PointLight(color, 1.0, 2, 2);
   g.add(lt);
   g.position.copy(pos);
   g.position.y = 0.5;
@@ -3017,11 +3009,20 @@ function update(dt) {
     GAME.player.position.z += moveDir.z * speed * dt;
   }
   // dash
-  if ((GAME.keys['Space']) && playerStats.dashCooldown <= 0 && moveDir.lengthSq() > 0) {
-    playerStats.dashTimer = 0.25;
-    playerStats.dashCooldown = 1.0;
-    GAME.keys['Space'] = false; // single press; we'll re-trigger via keydown
-    spawnParticleBurst(_burstPosAt(GAME.player.position, 0.5, 0), 0x00ffff, 8, 6);
+  // Mobile UX: allow dash even when not actively moving (the joystick can
+  // be idle when the user taps DASH). On desktop, the original gate
+  // `&& moveDir.lengthSq() > 0` still applies because the keyboard doesn't
+  // have an idle-but-dash use case.
+  if (GAME.keys['Space'] && playerStats.dashCooldown <= 0) {
+    const isMobile = !!(typeof window !== 'undefined' && window.__NATIVE__);
+    if (!isMobile && moveDir.lengthSq() <= 0) {
+      // PC keyboard: skip dash if no movement
+    } else {
+      playerStats.dashTimer = 0.25;
+      playerStats.dashCooldown = 1.0;
+      GAME.keys['Space'] = false; // single press; we'll re-trigger via keydown
+      spawnParticleBurst(_burstPosAt(GAME.player.position, 0.5, 0), 0x00ffff, 8, 6);
+    }
   }
   if (playerStats.dashTimer > 0) playerStats.dashTimer -= dt;
   if (playerStats.dashCooldown > 0) playerStats.dashCooldown -= dt;
