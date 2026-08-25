@@ -132,6 +132,17 @@ Todos confirmados via test em PC (Brave, http://localhost:5173):
 | Menu inicial focado em PC | Duas listas (`.pc-controls` + `.mobile-controls`), toggle via `body.is-mobile` que `boot.ts` seta quando `Capacitor.isNativePlatform()` | `index.html:290-302`, `src/boot.ts` |
 | 30 FPS em mobile com lag em waves altas | antialias off, Reinhard toneMapping, pixelRatio 1.25 no mobile, ENEMY_CAP 35, AI O(n²) gated em > 20 inimigos | `src/game-source.ts:821-833, 2348-2352, 3290-3308` |
 
+### 3.6. Bugfixes mobile v0.3.0 (commit `76265b3`)
+
+| Bug | Fix | Onde |
+|---|---|---|
+| **Joysticks não respondiam (tocava mas nada acontecia)** | `capacitor.config.json:8` tinha `captureInput: true` — o WebView consumia TODOS pointer/touch events antes de chegarem ao DOM. `captureInput: false` resolve. | `capacitor.config.json` |
+| Travadas de 1-2s durante jogo | **Particle pool**: 320 meshes+materials pre-alocados; `spawnParticleBurst`/`spawnMuzzleFlashFast` agora só reusam slots. **Update loop** extrai `moveDir/fwd/right` pra escopo de módulo. **Render loop** extrai `back/camRight/camTargetPos`. Helper `_burstPosAt(src,dy,dz)` elimina 12 alocações por call-site. | `src/game-source.ts` linhas 2567-2620, 2940-2955, 3640-3680, 4190-4200 |
+| HUD comia a tela | `body.is-mobile` overrides: bar-wrap 240→150px, font-sizes 12-14→9-10px, crosshair 22→16px | `index.html:62-90` |
+| Câmera muito perto | Mobile: camDist 4.0→5.4, camBaseHeight 2.2→2.6, fovBase 65→62, sprint bonus 10→5, dash bonus 7→3 (menos fisheye) | `src/game-source.ts:4199-4227` |
+| Botões grandes demais | Joystick 130→105px, stick 60→46px, btn 78→64px, FIRE 100→82px | `src/mobile/MobileControls.css:19-59` |
+| Sem tela de loading antes do jogo | Splash "NanaGames" com fade 2s, ativado via `body.ready` setado em `requestAnimationFrame` | `index.html:286-291`, `src/boot.ts:128-148` |
+
 ---
 
 ## 4. Por que o APK não foi gerado
